@@ -1,5 +1,6 @@
 {
-  "name": "smpb-monorepo-1",
+  "name": "spmb-monorepo-1",
+  "version": "0.1.0",
   "private": true,
   "scripts": {
     "build": "turbo run build",

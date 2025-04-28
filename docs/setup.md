@@ -27,6 +27,16 @@ pnpm create next-app@latest apps/be
 pnpm create next-app@latest apps/cp
 ```
 
+```plaintext 
+√ Would you like to use TypeScript? ... No / Yes
+√ Would you like to use ESLint? ... No / Yes
+√ Would you like to use Tailwind CSS? ... No / Yes
+√ Would you like your code inside a `src/` directory? ... No / Yes
+√ Would you like to use App Router? (recommended) ... No / Yes
+√ Would you like to use Turbopack for `next dev`? ... No / Yes
+√ Would you like to customize the import alias (`@/*` by default)? ... No / Yes
+```
+
 tambahkan packages/ui ke `package.json` masing-masing apps
 
 ```json
@@ -48,6 +58,38 @@ update `tsconfig.json`
 
 ```json
   "extends": "@repo/typescript-config/nextjs.json",
+```
+
+update `eslint.config.mjs` dari defaultnya installnya menggunakan sharing eslint config 
+
+dari 
+
+```mjs
+import { dirname } from "path";
+import { fileURLToPath } from "url";
+import { FlatCompat } from "@eslint/eslintrc";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+const compat = new FlatCompat({
+  baseDirectory: __dirname,
+});
+
+const eslintConfig = [
+  ...compat.extends("next/core-web-vitals", "next/typescript"),
+];
+
+export default eslintConfig;
+```
+
+menjadi 
+
+```mjs
+import { nextJsConfig } from "@repo/eslint-config/next-js";
+
+/** @type {import("eslint").Linter.Config} */
+export default nextJsConfig;
 ```
 
 run `pnpm install` setelah update package.json
@@ -103,9 +145,7 @@ reference: <https://ui.shadcn.com/docs/installation/manual>
 2. Add dependency
 
     ```sh
-    pnpm add class-variance-authority clsx tailwind-merge lucide-react tw-animate-css --filter=@repo/ui 
-    
-    --filter=@repo/be --filter=@repo/cp --filter=@repo/cp
+    pnpm add class-variance-authority clsx tailwind-merge lucide-react tw-animate-css --filter=@repo/ui    
     ```
 
 3. configure path aliases
@@ -322,6 +362,11 @@ reference: <https://ui.shadcn.com/docs/installation/manual>
       }
     ```
 
+    | Part                     | Purpose                                                                 | Example                                |
+    |--------------------------|-------------------------------------------------------------------------|----------------------------------------|
+    | tsconfig.json > paths    | Tells TypeScript where to find modules at build time (for type checking, intellisense, etc). | `@repo/ui/* → ../../packages/ui/src/*` |
+    | package.json > dependencies | Tells your bundler / runtime (like Next.js, Vite, etc.) how to install and resolve the real code at runtime. | `@repo/ui → workspace package`         |
+
 2. create `components.json` untuk semua apps `apps/fe/components.json` `apps/be/components.json` `apps/cp/components.json`
 
     ```json
@@ -369,3 +414,13 @@ pnpm dlx shadcn@latest add
 ```
 
 perintah ini akan menginstall semua component yang diperlukan dari radix ui dan bbrp library yg digunanakan shadcn
+
+copy untuk template
+
+```
+Copy-Item -Recurse -Path .\apps\be -Destination .\apps\tpl
+
+Remove-Item -Recurse -Force .\apps\tpl\node_modules
+Remove-Item -Recurse -Force .\apps\tpl\.next
+Remove-Item -Recurse -Force .\apps\tpl\.turbo
+```
