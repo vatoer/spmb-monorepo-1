@@ -1,0 +1,21 @@
+{
+  "name": "@repo/db",
+  "version": "0.1.0",
+  "scripts": {
+    "db:generate:auth": "prisma generate --schema=./prisma/db-auth/schema.prisma",
+    "db:migrate:auth": "prisma migrate dev --skip-generate --schema=./prisma/db-auth/schema.prisma",
+    "db:deploy:auth": "prisma migrate deploy --schema=./prisma/db-auth/schema.prisma"
+  },
+  "devDependencies": {
+    "@repo/eslint-config": "workspace:*",
+    "@repo/typescript-config": "workspace:*",
+    "@types/node": "^22.15.3",
+    "prisma": "^6.7.0"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.7.0"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}

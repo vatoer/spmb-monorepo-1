@@ -16,6 +16,16 @@
     "dev": {
       "cache": false,
       "persistent": true
+    },
+    "db:generate:auth": {
+      "cache": false
+    },
+    "db:migrate:auth": {
+      "cache": false,
+      "persistent": true // This is necessary to interact with the CLI and assign names to your database migrations.
+    },
+    "db:deploy:auth": {
+      "cache": false
     }
   }
 }

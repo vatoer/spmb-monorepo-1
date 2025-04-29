@@ -400,7 +400,7 @@ reference: <https://ui.shadcn.com/docs/installation/manual>
 + import "@repo/ui/globals.css";
 ```
 
-## tambah komponen ke apps/fe dan lainnya
+### tambah komponen ke apps/fe dan lainnya
 
 ```sh
 cd packages/ui
@@ -424,3 +424,266 @@ Remove-Item -Recurse -Force .\apps\tpl\node_modules
 Remove-Item -Recurse -Force .\apps\tpl\.next
 Remove-Item -Recurse -Force .\apps\tpl\.turbo
 ```
+
+## Install Prisma
+
+referensi <https://www.prisma.io/docs/guides/turborepo#2-add-a-new-database-package-to-the-turborepo-prisma-monorepo>
+
+
+### Add a new database package to the monorepo
+
+```sh
+mkdir packages/database
+cd packages/database
+touch packages/database/package.json
+```
+
+Define the package.json file as follows:
+
+`packages/database/package.json`
+
+```diff
++ {
++  "name": "@repo/db",
++  "version": "0.0.0"
++    "devDependencies": {
++      "@repo/eslint-config": "workspace:*",
++      "@repo/typescript-config": "workspace:*",
++    }
++ }
+```
+
+
+```sh
+cd packages/database
+pnpm add -D prisma @types/node --filter=@repo/db
+pnpm add @prisma/client --filter=@repo/db
+```
+
+### setup tsconfig
+
+```sh
+touch packages/database/tsconfig.json
+```
+
+```json
+{
+  "extends": "@repo/typescript-config/base.json",
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", "tsup.config.ts"],
+  "exclude": ["node_modules"]
+}
+```
+
+### Initialize prisma 
+
+```sh
+cd packages/database
+touch prisma/db-auth/schema.prisma
+```
+
+update content `prisma/db-auth/schema.prisma`
+
+```prisma
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
+  output        = "../../node_modules/@prisma-db-auth/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL_AUTH")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String?   @unique
+  name          String?
+  password      String?
+  image         String?
+  emailVerified DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @default(now())
+}
+
+```
+
+```sh
+cd packages/database
+touch .gitignore
+touch .env
+```
+
+update content `.gitignore` add `.env` file to ignore
+
+```.gitignore
+.env
+```
+
+update content `.env`
+
+```.env
+DATABASE_URL_AUTH="postgresql://postgres:postgres@localhost:5454/monorepoauth?schema=public"
+```
+
+### Create scripts to execute Prisma CLI commands
+
+Let's add some scripts to the package.json inside packages/database:
+
+```diff
+{
+  "name": "@repo/db",
+  "version": "0.1.0",
++   "scripts": {
++     "db:generate:auth": "prisma generate --schema=./prisma/db-auth/schema.prisma",
++     "db:migrate:auth": "prisma migrate dev --skip-generate --schema=./prisma/db-auth/schema.prisma",
++     "db:deploy:auth": "prisma migrate deploy --schema=./prisma/db-auth/schema.prisma"
++   },
+  "devDependencies": {
+    "prisma": "^6.7.0"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.7.0"
+  }
+}
+```
+
+Let's also add these scripts to turbo.json in the root:
+
+```diff
+{
+  "$schema": "https://turborepo.com/schema.json",
+  "ui": "tui",
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "inputs": ["$TURBO_DEFAULT$", ".env*"],
+      "outputs": [".next/**", "!.next/cache/**"]
+    },
+    "lint": {
+      "dependsOn": ["^lint"]
+    },
+    "check-types": {
+      "dependsOn": ["^check-types"]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    },
++    "db:generate:auth": {
++      "cache": false
++    },
++    "db:migrate:auth": {
++      "cache": false,
++      "persistent": true // This is necessary to interact with the CLI and assign names to your database migrations.
++    },
++    "db:deploy:auth": {
++      "cache": false
++    }
++  }
+}
+```
+
+1. migrate prisma schema to database
+   
+   go to root project
+
+    ```sh
+    pnpm turbo db:migrate:auth
+    ```
+
+2. generate types from schema
+
+    ```sh
+    pnpm turbo db:generate:auth
+    ```
+
+### Export prisma types and an instance of PrismaClient to be used across the monorepo
+
+Next, export the generated types and an instance of `PrismaClient` so it can used in your applications.
+
+In the `packages/database` directory, create a `src` folder and add a `client-auth.ts` file. This file will define an instance of `PrismaClient`:
+
+```sh
+touch packages/database/src/client-auth.ts
+```
+
+```ts
+import { PrismaClient } from "@prisma-db-auth/client";
+
+const globalForPrisma = global as unknown as { prismaDbAuth: PrismaClient };
+
+export const prismaDbAuth =
+  globalForPrisma.prismaDbAuth || new PrismaClient();
+
+if (process.env.NODE_ENV !== "production") globalForPrisma.prismaDbAuth = prismaDbAuth;
+```
+
+Then create an `index.ts` file in the `src` folder to re-export the generated prisma types and the `PrismaClient` instance:
+
+
+```sh
+touch packages/database/src/index.ts
+```
+
+```ts
+export { prismaDbAuth } from './client-auth' // exports instance of prisma 
+export * from "@prisma-db-auth/client" // exports generated types from prisma
+```
+
+Follow the [Just-in-Time packaging pattern](https://turbo.build/repo/docs/core-concepts/internal-packages#just-in-time-packages) and create an entrypoint to the package inside packages/database/package.json:
+
+```diff
+{
+  "name": "@repo/db",
+  "version": "0.1.0",
+  "scripts": {
+    "db:generate:auth": "prisma generate --schema=./prisma/db-auth/schema.prisma",
+    "db:migrate:auth": "prisma migrate dev --skip-generate --schema=./prisma/db-auth/schema.prisma",
+    "db:deploy:auth": "prisma migrate deploy --schema=./prisma/db-auth/schema.prisma"
+  },
+  "devDependencies": {
+    "@repo/eslint-config": "workspace:*",
+    "@repo/typescript-config": "workspace:*",
+    "@types/node": "^22.15.3",
+    "prisma": "^6.7.0"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.7.0"
+  },
++  "exports": {
++    ".": "./src/index.ts"
++  }
+}
+```
+
+### Importing the database package into the fe app in the monorepo
+
+```diff
+{
+  "dependencies": {
++   "@repo/db": "workspace:*"
+  }
+} 
+```
+setiap kali merubah package.json jangan lupa untuk install
+
+```sh
+cd apps/fe
+pnpm install
+```
+
+pastikan setiaps app mempunyai `.env` masing-masing
+
+```.env
+DATABASE_URL_AUTH="postgresql://postgres:postgres@localhost:5454/monorepoauth?schema=public"
+```
+
+kemudian jalankan pnpm dev
+
+```sh
+cd apps/fe
+pnpm dev
+```
+
+pastikan tidak ada yang error
