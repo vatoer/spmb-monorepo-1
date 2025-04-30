@@ -21,6 +21,7 @@
     ],
     "paths": {
       "@/*": ["./src/*"],
+      "@repo/trpc/*": ["../../packages/tRPC/src/*"],
       "@repo/ui/*": ["../../packages/ui/src/*"]
     }
   },

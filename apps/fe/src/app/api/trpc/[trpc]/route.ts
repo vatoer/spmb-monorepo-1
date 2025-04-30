@@ -1,0 +1,1 @@
+export { handler as GET, handler as POST } from '@repo/trpc/api/trpc/[trpc]/route';
