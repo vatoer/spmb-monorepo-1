@@ -1,9 +1,16 @@
 import { prismaDbAuth } from "@repo/db";
 import { Button } from "@repo/ui/components/ui/button";
+import { getQueryClient, trpc } from "@repo/trpc/server";
+import { ClientGreeting } from "@/modules/users/components/client-greeting";
 
 export default async function Home() {
-  const user = await prismaDbAuth.user.findMany();
-  console.log(user);
+  const usersFromPrisma = await prismaDbAuth.user.findMany();
+  console.log(usersFromPrisma);
+
+  // try from trpc
+  const queryClient = getQueryClient();
+  const usersFromTRPC = await queryClient.fetchQuery(trpc.users.getMany.queryOptions())
+  console.log(usersFromTRPC);
 
   return (
     <div className="bg-blue-500 h-screen flex flex-col items-center justify-center">
@@ -16,6 +23,11 @@ export default async function Home() {
           Click Me
         </Button>
       </div>
+      <div>
+        {JSON.stringify(usersFromTRPC)}
+      </div>
+
+      <ClientGreeting />
       
     </div>
   );
